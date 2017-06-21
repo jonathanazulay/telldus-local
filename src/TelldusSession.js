@@ -1,5 +1,6 @@
-import fetch from 'node-fetch'
+import fetch from 'isomorphic-fetch'
 import querystring from 'query-string'
+import jwtDecode from 'jwt-decode'
 
 const
   maybeAddAuthorizationHeader = (options, accessToken) => (
@@ -17,18 +18,19 @@ const
   leadingSlash = path => (
     path[0] === '/' ? path : '/' + path
   ),
-  buildUrl = (base, path, params) => (
-    trailingSlash(base) +
-    'api' +
-    leadingSlash(path) +
-    '?' +
-    querystring.stringify(params)
+  TEN_MINUTES_MS = 60 * 10 * 1000,
+  shouldRefreshToken = (token) => (
+    (jwtDecode(token, { header: true }).exp * 1000) < (Date.now() + TEN_MINUTES_MS)
   )
 
 export default class TelldusSession {
   constructor (deviceUrl) {
     this.fetch = (url, params = {}, options = {}) => fetch(
-      buildUrl(deviceUrl, url, params),
+      trailingSlash(deviceUrl) +
+      'api' +
+      leadingSlash(url) +
+      '?' +
+      querystring.stringify(params),
       options
     )
   }
@@ -42,10 +44,16 @@ export default class TelldusSession {
   }
 
   invoke (endpoint, params = {}) {
+    if (shouldRefreshToken(this.accessToken)) {
+      return this.refreshToken()
+        .then(() => this.invoke(endpoint, params))
+        .catch(() => this.invoke(endpoint, params))
+    }
+
     return this.api(endpoint, params)
   }
 
-  authorize (app) {
+  initLogin (app) {
     return this.api(
       '/token',
       {},
@@ -57,30 +65,45 @@ export default class TelldusSession {
     )
   }
 
-  loginWithAccessToken (accessToken, { refresh = true } = {}) {
-    return this.api('/devices/list', {}, {}, accessToken)
+  resumeLogin (token) {
+    return this.api('/token', { token })
+    .then(({ token }) => {
+      if (token) {
+        return this.loginWithAccessToken(token, { skipVerify: true })
+      } else {
+        throw resp
+      }
+    })
+  }
+
+  loginWithAccessToken (accessToken, { skipVerify = false } = {}) {
+    if (skipVerify) {
+      this.accessToken = accessToken
+      return new Promise(function (resolve) {
+        resolve({
+          success: true,
+          token: accessToken
+        })
+      })
+    }
+
+    return (
+      this.api('/devices/list', {}, {}, accessToken)
       .then(resp => {
-        if (resp.device) {
-          this.accessToken = accessToken
+          this.accessToken = accessToken;
           return { success: true, token: accessToken }
-        }
-        else {
+      })
+    )
+  }
+
+  refreshToken () {
+    return this.api('/refreshToken')
+      .then(resp => {
+        if (resp.accessToken) {
+          this.accessToken = resp.accessToken
+        } else {
           throw resp
         }
       })
-  }
-
-  loginWithToken (token, { refresh = true } = {}) {
-    return this.api('/token', { token })
-      .then(resp => {
-        if (resp.token && resp.expires) {
-          return this.loginWithAccessToken(resp.token)
-        }
-        throw resp
-      })
-  }
-
-  logout () {
-
   }
 }
