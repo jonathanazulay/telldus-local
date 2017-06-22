@@ -8,62 +8,6 @@ fetch = 'default' in fetch ? fetch['default'] : fetch;
 querystring = 'default' in querystring ? querystring['default'] : querystring;
 jwtDecode = 'default' in jwtDecode ? jwtDecode['default'] : jwtDecode;
 
-var api = (function (session) {
-  return {
-    getDevices: function getDevices() {
-      return session.invoke('/devices/list');
-    },
-
-    getDeviceInfo: function getDeviceInfo(id) {
-      return session.invoke('/device/info', { id: id });
-    },
-
-    bellDevice: function bellDevice(id) {
-      return session.invoke('/device/bell', { id: id });
-    },
-
-    commandDevice: function commandDevice(id, method, value) {
-      return session.invoke('/device/command', { id: id, method: method, value: value });
-    },
-
-    dimDevice: function dimDevice(id, level) {
-      return session.invoke('/device/dim', { id: id, level: level });
-    },
-
-    downDevice: function downDevice(id) {
-      return session.invoke('/device/down', { id: id });
-    },
-
-    infoDevice: function infoDevice(id) {
-      return session.invoke('/device/info', { id: id });
-    },
-
-    learnDevice: function learnDevice(id) {
-      return session.invoke('/device/learn', { id: id });
-    },
-
-    setNameDevice: function setNameDevice(id, name) {
-      return session.invoke('/device/setName', { id: id, name: name });
-    },
-
-    stopDevice: function stopDevice(id) {
-      return session.invoke('/device/stop', { id: id });
-    },
-
-    turnOffDevice: function turnOffDevice(id) {
-      return session.invoke('/device/turnOff', { id: id });
-    },
-
-    turnOnDevice: function turnOnDevice(id) {
-      return session.invoke('/device/turnOn', { id: id });
-    },
-
-    upDevice: function upDevice(id) {
-      return session.invoke('/device/up', { id: id });
-    }
-  };
-});
-
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
     throw new TypeError("Cannot call a class as a function");
@@ -107,6 +51,107 @@ var _extends = Object.assign || function (target) {
 
   return target;
 };
+
+var device = function device(session) {
+  return {
+    bellDevice: function bellDevice(id) {
+      return session.invoke("/device/bell", { id: id });
+    },
+
+    commandDevice: function commandDevice(id) {
+      return session.invoke("/device/command", { id: id });
+    },
+
+    dimDevice: function dimDevice(id, level) {
+      return session.invoke("/device/dim", { id: id, level: level });
+    },
+
+    getDeviceInfo: function getDeviceInfo(id) {
+      return session.invoke("/device/info", { id: id });
+    },
+
+    setDeviceLearn: function setDeviceLearn(id) {
+      return session.invoke("/device/learn", { id: id });
+    },
+
+    setDeviceName: function setDeviceName(id, name) {
+      return session.invoke("/device/setName", { id: id, name: name });
+    },
+
+    stopDevice: function stopDevice(id) {
+      return session.invoke("/device/stop", { id: id });
+    },
+
+    turnOffDevice: function turnOffDevice(id) {
+      return session.invoke("/device/turnOff", { id: id });
+    },
+
+    turnOnDevice: function turnOnDevice(id) {
+      return session.invoke("/device/turnOn", { id: id });
+    },
+
+    upDevice: function upDevice(id) {
+      return session.invoke("/device/up", { id: id });
+    },
+
+    downDevice: function downDevice(id) {
+      return session.invoke("/device/down", { id: id });
+    },
+
+    upDownDevice: function upDownDevice(id, state) {
+      return state ? device.upDevice(id) : device.downDevice(id);
+    },
+
+    onOffDevice: function onOffDevice(id, state) {
+      return state ? device.turnOnDevice(id) : device.turnOffDevice(id);
+    }
+  };
+};
+
+var devices = function devices(session) {
+  return {
+    getDevices: function getDevices() {
+      return session.invoke("/devices/list", { id: id });
+    }
+  };
+};
+
+var sensor = function sensor(session) {
+  return {
+    getSensorInfo: function getSensorInfo(id) {
+      return session.invoke("/sensor/info", { id: id });
+    },
+
+    setSensorName: function setSensorName(id, name) {
+      return session.invoke("/sensor/setName", { id: id, name: name });
+    }
+  };
+};
+
+var sensors = function sensors(session) {
+  return {
+    getSensors: function getSensors() {
+      return session.invoke("/sensors/list");
+    }
+  };
+};
+
+var lua = function lua(session) {
+  return {
+    luaCall: function luaCall(script, functionName) {
+      var params = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+
+      return session.invoke("/lua/call", _extends({
+        script: script,
+        function: functionName
+      }, params));
+    }
+  };
+};
+
+var api = (function (session) {
+  return _extends({}, device(session), devices(session), sensor(session), sensors(session), lua(session));
+});
 
 var maybeAddAuthorizationHeader = function maybeAddAuthorizationHeader(options, accessToken) {
   return accessToken ? _extends({}, options, {

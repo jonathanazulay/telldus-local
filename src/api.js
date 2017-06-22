@@ -83,10 +83,10 @@ let sensors = (session) => ({
 })
 
 let lua = (session) => ({
-  luaCall: (script, function, params = {}) => {
+  luaCall: (script, functionName, params = {}) => {
     return session.invoke(`/lua/call`, {
       script,
-      function,
+      function: functionName,
       ...params
     })
   }
