@@ -1,65 +1,65 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('node-fetch'), require('query-string')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'node-fetch', 'query-string'], factory) :
-	(factory((global['telldus-local'] = global['telldus-local'] || {}),global.fetch,global.querystring));
-}(this, (function (exports,fetch,querystring) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('isomorphic-fetch'), require('query-string'), require('jwt-decode')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'isomorphic-fetch', 'query-string', 'jwt-decode'], factory) :
+	(factory((global['telldus-local'] = global['telldus-local'] || {}),global.fetch,global.querystring,global.jwtDecode));
+}(this, (function (exports,fetch,querystring,jwtDecode) { 'use strict';
 
 fetch = 'default' in fetch ? fetch['default'] : fetch;
 querystring = 'default' in querystring ? querystring['default'] : querystring;
+jwtDecode = 'default' in jwtDecode ? jwtDecode['default'] : jwtDecode;
 
-var TelldusAPI = (function (_ref) {
-  var invoke = _ref.invoke;
+var api = (function (session) {
   return {
     getDevices: function getDevices() {
-      return invoke('/devices/list');
+      return session.invoke('/devices/list');
     },
 
     getDeviceInfo: function getDeviceInfo(id) {
-      return invoke('/device/info', { id: id });
+      return session.invoke('/device/info', { id: id });
     },
 
     bellDevice: function bellDevice(id) {
-      return invoke('/device/bell', { id: id });
+      return session.invoke('/device/bell', { id: id });
     },
 
     commandDevice: function commandDevice(id, method, value) {
-      return invoke('/device/command', { id: id, method: method, value: value });
+      return session.invoke('/device/command', { id: id, method: method, value: value });
     },
 
     dimDevice: function dimDevice(id, level) {
-      return invoke('/device/dim', { id: id, level: level });
+      return session.invoke('/device/dim', { id: id, level: level });
     },
 
     downDevice: function downDevice(id) {
-      return invoke('/device/down', { id: id });
+      return session.invoke('/device/down', { id: id });
     },
 
     infoDevice: function infoDevice(id) {
-      return invoke('/device/info', { id: id });
+      return session.invoke('/device/info', { id: id });
     },
 
     learnDevice: function learnDevice(id) {
-      return invoke('/device/learn', { id: id });
+      return session.invoke('/device/learn', { id: id });
     },
 
     setNameDevice: function setNameDevice(id, name) {
-      return invoke('/device/setName', { id: id, name: name });
+      return session.invoke('/device/setName', { id: id, name: name });
     },
 
     stopDevice: function stopDevice(id) {
-      return invoke('/device/stop', { id: id });
+      return session.invoke('/device/stop', { id: id });
     },
 
     turnOffDevice: function turnOffDevice(id) {
-      return invoke('/device/turnOff', { id: id });
+      return session.invoke('/device/turnOff', { id: id });
     },
 
     turnOnDevice: function turnOnDevice(id) {
-      return invoke('/device/turnOn', { id: id });
+      return session.invoke('/device/turnOn', { id: id });
     },
 
     upDevice: function upDevice(id) {
-      return invoke('/device/up', { id: id });
+      return session.invoke('/device/up', { id: id });
     }
   };
 });
@@ -121,8 +121,9 @@ var trailingSlash = function trailingSlash(path) {
 var leadingSlash = function leadingSlash(path) {
   return path[0] === '/' ? path : '/' + path;
 };
-var buildUrl = function buildUrl(base, path, params) {
-  return trailingSlash(base) + 'api' + leadingSlash(path) + '?' + querystring.stringify(params);
+var TEN_MINUTES_MS = 60 * 10 * 1000;
+var shouldRefreshToken = function shouldRefreshToken(token) {
+  return jwtDecode(token, { header: true }).exp * 1000 < Date.now() + TEN_MINUTES_MS;
 };
 
 var TelldusSession = function () {
@@ -132,7 +133,7 @@ var TelldusSession = function () {
     this.fetch = function (url) {
       var params = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
       var options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-      return fetch(buildUrl(deviceUrl, url, params), options);
+      return fetch(trailingSlash(deviceUrl) + 'api' + leadingSlash(url) + '?' + querystring.stringify(params), options);
     };
   }
 
@@ -153,13 +154,23 @@ var TelldusSession = function () {
   }, {
     key: 'invoke',
     value: function invoke(endpoint) {
+      var _this = this;
+
       var params = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+      if (shouldRefreshToken(this.accessToken)) {
+        return this.refreshToken().then(function () {
+          return _this.invoke(endpoint, params);
+        }).catch(function () {
+          return _this.invoke(endpoint, params);
+        });
+      }
 
       return this.api(endpoint, params);
     }
   }, {
-    key: 'authorize',
-    value: function authorize(app) {
+    key: 'initLogin',
+    value: function initLogin(app) {
       return this.api('/token', {}, {
         method: 'PUT',
         body: querystring.stringify({ app: app }),
@@ -167,47 +178,58 @@ var TelldusSession = function () {
       });
     }
   }, {
-    key: 'loginWithAccessToken',
-    value: function loginWithAccessToken(accessToken) {
-      var _this = this;
-
-      var _ref = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-          _ref$refresh = _ref.refresh,
-          refresh = _ref$refresh === undefined ? true : _ref$refresh;
-
-      return this.api('/devices/list', {}, {}, accessToken).then(function (resp) {
-        if (resp.device) {
-          _this.accessToken = accessToken;
-          return { success: true, token: accessToken };
-        } else {
-          throw resp;
-        }
-      });
-    }
-  }, {
-    key: 'loginWithToken',
-    value: function loginWithToken(token) {
+    key: 'resumeLogin',
+    value: function resumeLogin(token) {
       var _this2 = this;
 
-      var _ref2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-          _ref2$refresh = _ref2.refresh,
-          refresh = _ref2$refresh === undefined ? true : _ref2$refresh;
-
       return this.api('/token', { token: token }).then(function (resp) {
-        if (resp.token && resp.expires) {
-          return _this2.loginWithAccessToken(resp.token);
+        if (resp.token) {
+          return _this2.loginWithAccessToken(resp.token, { skipVerify: true });
         }
         throw resp;
       });
     }
   }, {
-    key: 'logout',
-    value: function logout() {}
+    key: 'loginWithAccessToken',
+    value: function loginWithAccessToken(accessToken) {
+      var _this3 = this;
+
+      var _ref = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+          _ref$skipVerify = _ref.skipVerify,
+          skipVerify = _ref$skipVerify === undefined ? false : _ref$skipVerify;
+
+      if (skipVerify) {
+        this.accessToken = accessToken;
+        return new Promise(function (resolve) {
+          resolve({
+            success: true,
+            token: accessToken
+          });
+        });
+      }
+
+      return this.api('/devices/list', {}, {}, accessToken).then(function (resp) {
+        _this3.accessToken = accessToken;
+        return { success: true, token: accessToken };
+      });
+    }
+  }, {
+    key: 'refreshToken',
+    value: function refreshToken() {
+      var _this4 = this;
+
+      return this.api('/refreshToken').then(function (resp) {
+        if (resp.accessToken) {
+          _this4.accessToken = resp.accessToken;
+        }
+        throw resp;
+      });
+    }
   }]);
   return TelldusSession;
 }();
 
-exports.api = TelldusAPI;
+exports.api = api;
 exports.Session = TelldusSession;
 
 Object.defineProperty(exports, '__esModule', { value: true });

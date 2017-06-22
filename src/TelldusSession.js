@@ -66,14 +66,14 @@ export default class TelldusSession {
   }
 
   resumeLogin (token) {
-    return this.api('/token', { token })
-    .then(({ token }) => {
-      if (token) {
-        return this.loginWithAccessToken(token, { skipVerify: true })
-      } else {
+    return this
+      .api('/token', { token })
+      .then(resp => {
+        if (resp.token) {
+          return this.loginWithAccessToken(resp.token, { skipVerify: true })
+        }
         throw resp
-      }
-    })
+      })
   }
 
   loginWithAccessToken (accessToken, { skipVerify = false } = {}) {
@@ -87,23 +87,22 @@ export default class TelldusSession {
       })
     }
 
-    return (
-      this.api('/devices/list', {}, {}, accessToken)
+    return this
+      .api('/devices/list', {}, {}, accessToken)
       .then(resp => {
-          this.accessToken = accessToken;
-          return { success: true, token: accessToken }
+        this.accessToken = accessToken;
+        return { success: true, token: accessToken }
       })
-    )
   }
 
   refreshToken () {
-    return this.api('/refreshToken')
+    return this
+      .api('/refreshToken')
       .then(resp => {
         if (resp.accessToken) {
           this.accessToken = resp.accessToken
-        } else {
-          throw resp
         }
+        throw resp
       })
   }
 }
