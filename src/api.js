@@ -62,7 +62,7 @@ let device = (session) => ({
 
 let devices = (session) => ({
   getDevices: () => {
-    return session.invoke(`/devices/list`, { id })
+    return session.invoke(`/devices/list`, { id }).then(resp => resp.device)
   }
 })
 
@@ -78,7 +78,7 @@ let sensor = (session) => ({
 
 let sensors = (session) => ({
   getSensors: () => {
-    return session.invoke(`/sensors/list`)
+    return session.invoke(`/sensors/list`).then(resp => resp.sensor)
   }
 })
 
