@@ -1,37 +1,25 @@
-export default (session) => ({
-  getDevices: () => {
-    return session.invoke('/devices/list')
-  },
-
-  getDeviceInfo: (id) => {
-    return session.invoke(`/device/info`, { id })
-  },
-
+let device = (session) => ({
   bellDevice: (id) => {
     return session.invoke(`/device/bell`, { id })
   },
 
-  commandDevice: (id, method, value) => {
-    return session.invoke(`/device/command`, { id, method, value })
+  commandDevice: (id) => {
+    return session.invoke(`/device/command`, { id })
   },
 
   dimDevice: (id, level) => {
     return session.invoke(`/device/dim`, { id, level })
   },
 
-  downDevice: (id) => {
-    return session.invoke(`/device/down`, { id })
-  },
-
-  infoDevice: (id) => {
+  getDeviceInfo: (id) => {
     return session.invoke(`/device/info`, { id })
   },
 
-  learnDevice: (id) => {
+  setDeviceLearn: (id) => {
     return session.invoke(`/device/learn`, { id })
   },
 
-  setNameDevice: (id, name) => {
+  setDeviceName: (id, name) => {
     return session.invoke(`/device/setName`, { id, name })
   },
 
@@ -49,5 +37,65 @@ export default (session) => ({
 
   upDevice: (id) => {
     return session.invoke(`/device/up`, { id })
+  },
+
+  downDevice: (id) => {
+    return session.invoke(`/device/down`, { id })
+  },
+
+  upDownDevice: (id, state) => {
+    return state ? (
+      device.upDevice(id)
+    ) : (
+      device.downDevice(id)
+    )
+  },
+
+  onOffDevice: (id, state) => {
+    return state ? (
+      device.turnOnDevice(id)
+    ) : (
+      device.turnOffDevice(id)
+    )
   }
+})
+
+let devices = (session) => ({
+  getDevices: () => {
+    return session.invoke(`/devices/list`, { id })
+  }
+})
+
+let sensor = (session) => ({
+  getSensorInfo: (id) => {
+    return session.invoke(`/sensor/info`, { id })
+  },
+
+  setSensorName: (id, name) => {
+    return session.invoke(`/sensor/setName`, { id, name })
+  }
+})
+
+let sensors = (session) => ({
+  getSensors: () => {
+    return session.invoke(`/sensors/list`)
+  }
+})
+
+let lua = (session) => ({
+  luaCall: (script, function, params = {}) => {
+    return session.invoke(`/lua/call`, {
+      script,
+      function,
+      ...params
+    })
+  }
+})
+
+export default (session) => ({
+  ...device(session),
+  ...devices(session),
+  ...sensor(session),
+  ...sensors(session),
+  ...lua(session)
 })
