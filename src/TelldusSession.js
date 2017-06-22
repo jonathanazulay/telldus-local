@@ -50,7 +50,7 @@ export default class TelldusSession {
         .catch(() => this.invoke(endpoint, params))
     }
 
-    return this.api(endpoint, params)
+    return this.api(endpoint, params).then(resp => { console.log(endpoint, JSON.stringify(resp)); return resp; })
   }
 
   initLogin (app) {
