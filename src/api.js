@@ -45,17 +45,17 @@ let device = (session) => ({
 
   upDownDevice: (id, state) => {
     return state ? (
-      device.upDevice(id)
+      session.invoke(`/device/up`, { id })
     ) : (
-      device.downDevice(id)
+      session.invoke(`/device/down`, { id })
     )
   },
 
   onOffDevice: (id, state) => {
     return state ? (
-      device.turnOnDevice(id)
+      session.invoke(`/device/turnOn`, { id })
     ) : (
-      device.turnOffDevice(id)
+      session.invoke(`/device/turnOff`, { id })
     )
   }
 })
