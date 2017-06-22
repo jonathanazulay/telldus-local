@@ -44,6 +44,10 @@ export default class TelldusSession {
   }
 
   invoke (endpoint, params = {}) {
+    if (params.id instanceof Object) {
+      params.id = params.id.id
+    }
+
     if (shouldRefreshToken(this.accessToken)) {
       return this.refreshToken()
         .then(() => this.invoke(endpoint, params))
