@@ -62,7 +62,7 @@ let device = (session) => ({
 
 let devices = (session) => ({
   getDevices: () => {
-    return session.invoke(`/devices/list`, { id }).then(resp => resp.device)
+    return session.invoke(`/devices/list`).then(resp => resp.device)
   }
 })
 
